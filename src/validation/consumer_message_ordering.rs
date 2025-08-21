@@ -2,10 +2,12 @@ use std::collections::BTreeMap;
 
 use crate::domain::{
     ConsumerGroupID, TestEvent, TestLogLine, TestLogLocation, TestValidator, TopicName,
-    TopicPartitionIndex, TopicPartitionOffset, ValidationFailure,
+    TopicPartitionIndex, TopicPartitionOffset,
 };
 use anyhow::Result;
 use serde::{Deserialize, Serialize};
+use serde_json::{json};
+
 
 /// ConsumerMessageOrderingValidator verifies that the consumer always reads messages with offsets that are greater than the last committed offset
 #[derive(Debug, Default, Serialize, Deserialize)]
@@ -21,7 +23,7 @@ impl TestValidator for ConsumerMessageOrderingValidator {
         "consumer-message-ordering"
     }
 
-    fn validate_event(&mut self, log: &TestLogLine) -> Vec<Result<(), ValidationFailure>> {
+    fn validate_event(&mut self, log: &TestLogLine){
         match &log.data.fields {
             TestEvent::ConsumerMessagesCommitted(event) => {
                 for (topic_name, partitions) in event.topic_partition_list.0.iter() {
@@ -65,19 +67,13 @@ impl TestValidator for ConsumerMessageOrderingValidator {
                     .and_then(|partitions| partitions.get(&event.message.metadata.topic_partition))
                 {
                     if event.message.metadata.topic_partition_offset < last_committed_offset.data {
-                        return vec![Err(
-                            ValidationFailure{
-                                code: String::from("non-monotonic"),
-                                line: log.line,
-                                error:   format!("{}, {}: message offset is less than the last committed offset {} at {} for this consumer group", 
-                                event.consumer, event.message, last_committed_offset.data, last_committed_offset.location())
-                        })];
+                        let details = json!({"consumer": event.consumer, "message": event.message, "last_committed_offset_data": last_committed_offset.data, "last_committed_offset_location": last_committed_offset.location()});
+                        antithesis_sdk::assert_unreachable!("Message offset is less than the last committed offset for this consumer group", &details);
                     }
                 }
             }
             _ => {}
         }
-        vec![Ok(())]
     }
     fn load_state(&mut self, data: &str) -> Result<()> {
         let instance: ConsumerMessageOrderingValidator = serde_json::from_str(data)?;

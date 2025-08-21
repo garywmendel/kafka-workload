@@ -1,10 +1,10 @@
 use crate::domain::{
     TestEvent, TestLogLine, TestLogLocation, TestValidator, TopicName, TopicPartitionIndex,
-    ValidationFailure,
 };
 use anyhow::Result;
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
+use serde_json::{json};
 
 /// ApplicationMessagePartitioningValidator verifies that the same partition is always assigned to the same key on the same topic
 #[derive(Debug, Default, Serialize, Deserialize)]
@@ -18,7 +18,7 @@ impl TestValidator for ApplicationMessagePartitioningValidator {
         "application-message-partitioning"
     }
 
-    fn validate_event(&mut self, log: &TestLogLine) -> Vec<Result<(), ValidationFailure>> {
+    fn validate_event(&mut self, log: &TestLogLine) {
         if let TestEvent::MessageReadSucceeded(event) = &log.data.fields {
             // Validate this only if the key is present
             if event.message.data.key.is_some() {
@@ -33,13 +33,8 @@ impl TestValidator for ApplicationMessagePartitioningValidator {
                         if existing_partition_assignment.data
                             != event.message.metadata.topic_partition
                         {
-                            return vec![Err(ValidationFailure { 
-                                code: String::from("key-reassigned"),
-                                line: log.line, 
-                                error: format!(
-                                "{}, {}: message key was previously assigned to partition {} at {}",
-                                event.consumer, event.message, existing_partition_assignment.data, existing_partition_assignment.location()
-                            ), })];
+                            let details = json!({"consumer": event.consumer, "message": event.message, "existing_partition_assignment_data": existing_partition_assignment.data, "existing_partition_assignment_location": existing_partition_assignment.location()});
+                            antithesis_sdk::assert_unreachable!("Message key was previously assigned to different partition", &details);
                         }
                     }
                     None => {
@@ -51,7 +46,6 @@ impl TestValidator for ApplicationMessagePartitioningValidator {
                 }
             }
         }
-        vec![Ok(())]
     }
     fn load_state(&mut self, data: &str) -> Result<()> {
         let instance: ApplicationMessagePartitioningValidator = serde_json::from_str(data)?;

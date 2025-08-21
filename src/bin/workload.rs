@@ -22,6 +22,9 @@ use tracing_subscriber::{
 };
 use uuid::Uuid;
 
+use serde_json::{json};
+use antithesis_sdk::lifecycle;
+
 /// TestEventFilter filters out log events that indicate some meaningful workload test event.
 /// In our case these include important events like the reading / writing of messages, partition reassignments, etc.
 struct TestEventFilter;
@@ -114,11 +117,17 @@ async fn main() -> Result<()> {
         admin_client.check_config().await?;
     }
 
-    info!(
-        timestamp = chrono::Utc::now().to_rfc3339_opts(chrono::SecondsFormat::Millis, true),
-        event = "workload_started",
-        is_strict_config = config.is_strict
-    );
+    let timestamp = chrono::Utc::now().to_rfc3339_opts(chrono::SecondsFormat::Millis, true);
+    let startup_data = json!({"timestamp": timestamp});
+    lifecycle::setup_complete(&startup_data);
+    // not necessary?
+    // is_strict_config = config.is_strict;
+
+    // info!(
+    //     timestamp = chrono::Utc::now().to_rfc3339_opts(chrono::SecondsFormat::Millis, true),
+    //     event = "workload_started",
+    //     is_strict_config = config.is_strict
+    // );
 
     let mut topics = Vec::new();
     let mut producers = Vec::new();

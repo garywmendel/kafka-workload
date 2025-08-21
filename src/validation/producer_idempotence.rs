@@ -1,9 +1,11 @@
 use crate::domain::{
-    MessageMetadata, TestEvent, TestLogLine, TestLogLocation, TestValidator, ValidationFailure
+    MessageMetadata, TestEvent, TestLogLine, TestLogLocation, TestValidator
 };
 use anyhow::Result;
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
+
+use serde_json::{json};
 
 /// ProducerIdempotenceValidator verifies that a message produced by a producer will present at only one topic / partition / offset
 #[derive(Debug, Default, Serialize, Deserialize)]
@@ -17,17 +19,13 @@ impl TestValidator for ProducerIdempotenceValidator {
         "producer-idempotence"
     }
 
-    fn validate_event(&mut self, log: &TestLogLine) -> Vec<Result<(), ValidationFailure>> {
+    fn validate_event(&mut self, log: &TestLogLine) {
         match &log.data.fields {
             TestEvent::MessageReadSucceeded(event) => {
                 if let Some(existing_metadata) = self.messages.get(&event.message.data.payload) {
                     if existing_metadata.data != event.message.metadata {
-                        return vec![Err(ValidationFailure{
-                            code: String::from("non-idempotent-message-read"),
-                            line: log.line,
-                            error: format!("{}, {}: identical message previously seen at {}", 
-                                    event.consumer, event.message, existing_metadata.location())
-                        })];
+                        let details = json!({"consumer": event.consumer, "message": event.message, "existing_metadata_location": existing_metadata.location()});
+                        antithesis_sdk::assert_unreachable!("Identical message previously seen (reader)_", &details);
                     }
                 } else {
                     self.messages.insert(event.message.data.payload.clone(), log.capture(event.message.metadata.clone()));
@@ -36,12 +34,8 @@ impl TestValidator for ProducerIdempotenceValidator {
             TestEvent::MessageWriteSucceeded(event) => {
                 if let Some(existing_metadata) = self.messages.get(&event.message.data.payload) {
                     if existing_metadata.data != event.message.metadata {
-                        return vec![Err(ValidationFailure{
-                            code: String::from("non-idempotent-message-written"),
-                            line: log.line,
-                            error: format!("{}, {}: identical message previously seen at {}", 
-                                    event.producer, event.message, existing_metadata.location())
-                        })];
+                        let details = json!({"prodcuer": event.producer, "message": event.message, "existing_metadata_location": existing_metadata.location()});
+                        antithesis_sdk::assert_unreachable!("Identical message previously seen (writer)", &details);
                     }
                 } else {
                     self.messages.insert(event.message.data.payload.clone(), log.capture(event.message.metadata.clone()));
@@ -49,8 +43,6 @@ impl TestValidator for ProducerIdempotenceValidator {
             }
             _ => {}
         }
-
-        vec![Ok(())]
     }
     fn load_state(&mut self, data: &str) -> Result<()> {
         let instance: ProducerIdempotenceValidator = serde_json::from_str(data)?;

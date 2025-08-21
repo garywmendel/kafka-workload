@@ -1,10 +1,12 @@
 use crate::domain::{
     TestEvent, TestLogLine, TestLogLocation, TestValidator, TopicName, TopicPartitionIndex,
-    TopicPartitionOffset, ValidationFailure,
+    TopicPartitionOffset
 };
 use anyhow::Result;
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
+
+use serde_json::{json};
 
 /// ProducerMessageOrderingValidator verifies that a producer will produce sequential messages on sequential offsets given:
 /// - producer is idempotent
@@ -23,7 +25,7 @@ impl TestValidator for ProducerMessageOrderingValidator {
         "producer-message-ordering"
     }
 
-    fn validate_event(&mut self, log: &TestLogLine) -> Vec<Result<(), ValidationFailure>> {
+    fn validate_event(&mut self, log: &TestLogLine) {
         if let TestEvent::MessageWriteSucceeded(event) = &log.data.fields {
             if let Some(last_offset) = self
                 .producer_topic_partition_offsets
@@ -36,16 +38,8 @@ impl TestValidator for ProducerMessageOrderingValidator {
                 if last_offset.data > event.message.metadata.topic_partition_offset {
                     let bad_offset = last_offset.clone();
                     *last_offset = log.capture(event.message.metadata.topic_partition_offset);
-                    return vec![Err(ValidationFailure {
-                        code: String::from("non-monotonic"),
-                        line: log.line,
-                        error: format!("{}, {}: message offset is not greater than the previous offset {} at {}", 
-                                event.producer,
-                                event.message,
-                                bad_offset.data,
-                                bad_offset.location()
-                                )
-                    })];
+                    let details = json!({"prodcuer": event.producer, "message": event.message, "bad_offset_data": bad_offset.data, "bad_offset_location": bad_offset.location()});
+                    antithesis_sdk::assert_unreachable!("Message offset is not greater than previous offset", &details);
                 } else {
                     *last_offset = log.capture(event.message.metadata.topic_partition_offset);
                 }
@@ -61,7 +55,6 @@ impl TestValidator for ProducerMessageOrderingValidator {
                     );
             };
         }
-        vec![Ok(())]
     }
     fn load_state(&mut self, data: &str) -> Result<()> {
         let instance: ProducerMessageOrderingValidator = serde_json::from_str(data)?;

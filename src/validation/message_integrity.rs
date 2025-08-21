@@ -1,6 +1,6 @@
 use crate::domain::{
     TestEvent, TestLogLine, TestLogLocation, TestValidator, TopicName, TopicPartitionIndex,
-    TopicPartitionOffset, ValidationFailure,
+    TopicPartitionOffset
 };
 use anyhow::Result;
 use serde::{Deserialize, Serialize};
@@ -8,6 +8,7 @@ use std::{
     collections::{btree_map::Entry, BTreeMap, hash_map::DefaultHasher},
     hash::{Hasher, Hash}
 };
+use serde_json::{json};
 
 /// MessageDurabilityValidatorMessage verifies that no message to modified between read and write, and that all messages are seen
 /// at least once at the end of the test
@@ -39,7 +40,7 @@ impl TestValidator for MessageIntegrityValidator {
         "message-integrity"
     }
 
-    fn validate_event(&mut self, log: &TestLogLine) -> Vec<Result<(), ValidationFailure>> {
+    fn validate_event(&mut self, log: &TestLogLine) {
         match &log.data.fields {
             TestEvent::MessageReadSucceeded(event) => {
                 let mut hasher = DefaultHasher::new();
@@ -62,16 +63,8 @@ impl TestValidator for MessageIntegrityValidator {
                         match &entry.0 {
                             Some(old_read_hash) => {
                                 if old_read_hash.data != message_read_hash {
-                                    return vec![Err(ValidationFailure {
-                                        code: String::from("different-reads"),
-                                        line: log.line,
-                                        error: format!(
-                                            "{}, {}: message data differs from previous read at {}",
-                                            event.consumer,
-                                            event.message,
-                                            old_read_hash.location()
-                                        ),
-                                    })];
+                                    let details = json!({"consumer": event.consumer, "message": event.message, "old_read_hash_location": old_read_hash.location()});
+                                    antithesis_sdk::assert_unreachable!("Message data differs from previous read at location", &details);
                                 }
                             }
                             None => {
@@ -89,11 +82,8 @@ impl TestValidator for MessageIntegrityValidator {
                     .and_then(|offsets| offsets.get(&event.message.metadata.topic_partition_offset))
                 {
                     if final_read_hash.data != final_write_hash.data {
-                        return vec![Err(ValidationFailure{
-                                code: String::from("write-read-different"),
-                                line: log.line,
-                                error: format!("{}, {}: message data differs from previous write by the producer at {}", event.consumer, event.message, final_write_hash.location())
-                            })];
+                        let details = json!({"consumer": event.consumer, "message": event.message, "final_write_hash_location": final_write_hash.location()});
+                        antithesis_sdk::assert_unreachable!("Message data differs from previous write by producer at location", &details); 
                     }
                 }
             }
@@ -118,12 +108,8 @@ impl TestValidator for MessageIntegrityValidator {
                         match &entry.1 {
                             Some(old_write_hash) => {
                                 if old_write_hash.data != message_write_hash {
-                                    return vec![Err(ValidationFailure{
-                                        code: String::from("different-writes"),
-                                        line: log.line,
-                                        error: format!("{}, {}: message data differs from previous write at {}", 
-                                                event.producer, event.message,old_write_hash.location())
-                                    })];
+                                    let details = json!({"consumer": event.producer, "message": event.message, "old_write_hash_location": old_write_hash.location()});
+                                    antithesis_sdk::assert_unreachable!("Message data differs from previous write at location", &details);
                                 }
                             }
                             None => {
@@ -141,16 +127,12 @@ impl TestValidator for MessageIntegrityValidator {
                     .and_then(|offsets| offsets.get(&event.message.metadata.topic_partition_offset))
                 {
                     if final_read_hash.data != final_write_hash.data {
-                        return vec![Err(ValidationFailure{
-                                code: String::from("read-write-different"),
-                                line: log.line,
-                                error: format!("{}, {}: message data differs from previous read by the consumer at {}", event.producer, event.message, final_read_hash.location())
-                            })];
+                        let details = json!({"producer": event.producer, "message": event.message, "final_read_hash_location": final_read_hash.location()});
+                        antithesis_sdk::assert_unreachable!("Message data differs from previous write at location", &details);
                     }
                 }
             }
             TestEvent::WorkloadEnded => {
-                let mut results = Vec::new();
                 for (topic_name, partition_offsets) in self.messages.iter() {
                     for (topic_partition, topic_partition_offset, read_write_state) in
                         partition_offsets
@@ -166,30 +148,12 @@ impl TestValidator for MessageIntegrityValidator {
                                 // nothing to do here, since we already incrementally validated this
                             }
                             (Some(message_read_hash), None) => {
-                                results.push(Err(ValidationFailure {
-                                        code: String::from("read-never-written"),
-                                        line: message_read_hash.line,
-                                        error: format!(
-                                            "topic = '{}', partition = {}, offset = {}: message read at {} was never written",
-                                            topic_name,
-                                            topic_partition,
-                                            topic_partition_offset,
-                                            message_read_hash.location()
-                                        ),
-                                    }));
+                                let details = json!({"topic_name": topic_name, "topic_partition": topic_partition, "topic_partition_offset": topic_partition_offset, "message_read_hash_location": message_read_hash.location()});
+                                antithesis_sdk::assert_unreachable!("Read message was never written", &details);
                             }
                             (None, Some(message_write_hash)) => {
-                                results.push(Err(ValidationFailure {
-                                        code: String::from("write-never-read"),
-                                        line: message_write_hash.line,
-                                        error: format!(
-                                            "topic = '{}', partition = {}, offset = {}: message write at {} was never read by any consumer, it may be lost",
-                                            topic_name,
-                                            topic_partition,
-                                            topic_partition_offset,
-                                            message_write_hash.location()
-                                        ),
-                                    }));
+                                let details = json!({"topic_name": topic_name, "topic_partition": topic_partition, "topic_partition_offset": topic_partition_offset, "message_write_hash_location": message_write_hash.location()});
+                                antithesis_sdk::assert_unreachable!("Written message never read", &details);
                             }
                             (None, None) => {
                                 unreachable!()
@@ -197,11 +161,9 @@ impl TestValidator for MessageIntegrityValidator {
                         }
                     }
                 }
-                return results;
             }
             _ => {}
         }
-        vec![Ok(())]
     }
     fn load_state(&mut self, data: &str) -> Result<()> {
         let instance: MessageIntegrityValidator = serde_json::from_str(data)?;

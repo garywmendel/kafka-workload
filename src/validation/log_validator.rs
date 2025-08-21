@@ -21,18 +21,7 @@ impl LogValidator {
     }
     pub fn validate_event(&mut self, log: &TestLogLine) {
         for validator in self.validators.iter_mut() {
-            let results = validator.validate_event(log);
-            for result in results {
-                match result {
-                    Ok(_) => {}
-                    Err(err) => {
-                        self.failures
-                            .entry(validator.validator_name())
-                            .or_default()
-                            .push(err);
-                    }
-                }
-            }
+            validator.validate_event(log);
         }
     }
     pub fn load_state(&mut self, state: BTreeMap<String, String>) -> Result<()> {

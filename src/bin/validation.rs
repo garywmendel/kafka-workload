@@ -33,6 +33,7 @@ fn validate_workload(workload_log_filename: PathBuf) {
     let (workload_id, workload_end_cursor, workload_results, workload_ended) =
         workload_log.validate().expect("workload validation failed");
 
+    // TODO: remove because we have in-line validation?
     for (validation, failures) in workload_results {
         for err in failures {
             println!(
