@@ -1,5 +1,5 @@
 use crate::domain::{
-    TestEvent, TestLogLine, TestLogLocation, TestValidator, TopicName, TopicPartitionIndex,
+    TestEvent, TestLogLine, TestLogLocation, TestValidator, TopicName, TopicPartitionIndex
 };
 use anyhow::Result;
 use serde::{Deserialize, Serialize};

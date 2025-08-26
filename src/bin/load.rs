@@ -2,11 +2,9 @@ use std::env;
 
 use anyhow::{Context, Result};
 use kafka_ant_ar_workload::{config::WorkloadConfig, kafka::test_admin_client::TestAdminClient};
-use tracing::{level_filters::LevelFilter};
+use tracing::{info, level_filters::LevelFilter};
 use tracing_subscriber::{fmt, layer::SubscriberExt, Layer, Registry};
 
-use serde_json::{json};
-use antithesis_sdk::lifecycle;
 
 fn setup_logging() -> Result<()> {
     let global_log_subscriber =
@@ -34,15 +32,12 @@ async fn main() -> Result<()> {
     if config.is_strict {
         admin_client.check_config().await?;
     }
-    
-    let timestamp = chrono::Utc::now().to_rfc3339_opts(chrono::SecondsFormat::Millis, true);
-    let startup_data = json!({"timestamp": timestamp});
-    lifecycle::setup_complete(&startup_data);
-    
-    
-    // TODO: sleep for 10 seconds
-    // not necessary?
-    // is_strict_config = config.is_strict;
 
+    // TODO: Maybe use antithesis send event
+    info!(
+        timestamp = chrono::Utc::now().to_rfc3339_opts(chrono::SecondsFormat::Millis, true),
+        event = "cluster_started",
+        is_strict_config = config.is_strict
+    );
     Ok(())
 }

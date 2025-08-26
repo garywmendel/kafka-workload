@@ -377,7 +377,9 @@ impl TestConsumer {
                 "enable.auto.commit",
                 if enable_auto_commit { "true" } else { "false" },
             )
-            .set("auto.offset.reset", "beginning");
+            .set("auto.offset.reset", "earliest")
+            .set("isolation.level", "read_uncommitted")
+            .set("partition.assignment.strategy", "range");
         if config.enable_debug {
             consumer_config.set("debug", "protocol");
         }
