@@ -5,6 +5,8 @@ use antithesis_kafka_workload::{config::WorkloadConfig, kafka::test_admin_client
 use tracing::{info, level_filters::LevelFilter};
 use tracing_subscriber::{fmt, layer::SubscriberExt, Layer, Registry};
 
+use serde_json::{json};
+use antithesis_sdk::lifecycle;
 
 fn setup_logging() -> Result<()> {
     let global_log_subscriber =
@@ -39,5 +41,10 @@ async fn main() -> Result<()> {
         event = "cluster_started",
         is_strict_config = config.is_strict
     );
+    
+    let timestamp = chrono::Utc::now().to_rfc3339_opts(chrono::SecondsFormat::Millis, true);
+    let startup_data = json!({"timestamp": timestamp});
+    lifecycle::setup_complete(&startup_data);
+    
     Ok(())
 }
