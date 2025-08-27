@@ -10,13 +10,6 @@ echo "workload connected"
 sleep 5
 
 echo "starting workload loop"
-# removing xargs dependancy because of the minimal nix image
-# while true
-# do
-#     # Run 100 instances of the workload with at-most N instances of the workload in parallel
-#     N=2
-#     seq 1 100 | xargs -i -P $N bash -c './workload workload-config.json' 
-# done&
 
 N=2
 for i in $(seq 1 10); do

@@ -1,7 +1,7 @@
 use std::env;
 
 use anyhow::{Context, Result};
-use kafka_ant_ar_workload::{config::WorkloadConfig, kafka::test_admin_client::TestAdminClient};
+use antithesis_kafka_workload::{config::WorkloadConfig, kafka::test_admin_client::TestAdminClient};
 use tracing::{info, level_filters::LevelFilter};
 use tracing_subscriber::{fmt, layer::SubscriberExt, Layer, Registry};
 

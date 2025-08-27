@@ -1,5 +1,5 @@
 use anyhow::{anyhow, Context, Result};
-use kafka_ant_ar_workload::{
+use antithesis_kafka_workload::{
     config::WorkloadConfig,
     decisions::{ConsumeTopic, CreateTopic},
     domain::{GlobalState, TestTopic},

@@ -276,7 +276,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "kafka_ant_ar_workload"
+name = "antithesis_kafka_workload"
 version = "0.1.0"
 dependencies = [
  "antithesis_sdk",
