@@ -1,8 +1,9 @@
 {
-    "bootstrap_servers": "localhost:9092,localhost:9093,localhost:9094",
+    "bootstrap_servers": "kafka-1:9092,kafka-2:9092,kafka-3:9092",
     "enable_debug": false,
     "is_strict": true,
     "log_dir": "logs",
+    "consumer_isolation_level": "read_uncommitted",
     "topic_count": {
         "min": 2,
         "max": 10
