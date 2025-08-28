@@ -84,6 +84,17 @@ services:
     user: root
     depends_on:
       - kafka-2
+  workload:
+    image: localhost/antithesis-kafka-workload:latest
+    container_name: workload
+    volumes:
+      - ./workload-config.json:/app/workload-config.json
+    networks:
+      - cluster-net
+    depends_on:
+      - kafka-1
+      - kafka-2
+      - kafka-3
 
 networks:
   cluster-net:

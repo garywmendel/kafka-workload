@@ -1,5 +1,5 @@
 [package]
-name = "kafka_ant_ar_workload"
+name = "antithesis_kafka_workload"
 version = "0.1.0"
 edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html

@@ -6,8 +6,10 @@ use rdkafka::{
     types::RDKafkaErrorCode,
     ClientConfig,
 };
-use std::time::Duration;
+// use std::time::Duration;
 use tracing::{error, info};
+use tokio::time::{sleep, Duration};
+use rdkafka::metadata::Metadata;
 
 pub struct TestAdminClient {
     bootstrap_servers: String,
@@ -25,23 +27,35 @@ impl TestAdminClient {
         if self.inner_admin_client.is_some() {
             return Ok(())
         }
+
         loop {
             let client: AdminClient<DefaultClientContext> = ClientConfig::new()
                 .set("bootstrap.servers", &self.bootstrap_servers)
-                .create()?;
-            let brokers = self.bootstrap_servers.split(',').count() as i32;
+                .create()
+                .context("failed to create Kafka admin client")?;
+
+            // Fetch cluster metadata to discover broker IDs
+            let metadata: Metadata = client
+                .inner()
+                .fetch_metadata(None, Duration::from_secs(5))
+                .context("failed to fetch cluster metadata")?;
+
             let mut all_brokers_up = true;
-            for index in 1..=brokers {
+
+            for broker in metadata.brokers() {
+                let broker_id = broker.id();
                 let result = client
                     .describe_configs(
-                        vec![&ResourceSpecifier::Broker(index)],
+                        vec![&ResourceSpecifier::Broker(broker_id)],
                         &AdminOptions::default()
                             .request_timeout(Some(Duration::from_secs(5)))
                             .operation_timeout(Some(Duration::from_secs(5))),
                     )
                     .await;
+
                 if result.is_err() {
                     all_brokers_up = false;
+                    break;
                 }
             }
 
@@ -49,6 +63,9 @@ impl TestAdminClient {
                 self.inner_admin_client = Some(client);
                 return Ok(());
             }
+
+            // Avoid busy-looping if brokers aren't ready yet
+            sleep(Duration::from_secs(5)).await;
         }
     }
 

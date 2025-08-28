@@ -1,4 +1,4 @@
-use kafka_ant_ar_workload::{
+use antithesis_kafka_workload::{
     domain::TestValidator,
     validation::{
         application_message_partitioning::ApplicationMessagePartitioningValidator,
