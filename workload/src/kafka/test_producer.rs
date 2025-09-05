@@ -127,7 +127,7 @@ impl TestProducer {
                 };
                 match self
                     .inner_producer
-                    .send(record, Timeout::After(Duration::from_secs(10)))
+                    .send(record, Timeout::Never)
                     .await
                 {
                     Ok((partition, offset)) => {
