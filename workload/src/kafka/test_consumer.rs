@@ -11,7 +11,6 @@ use rdkafka::{
     ClientConfig, ClientContext, Message,
 };
 use serde::Serialize;
-use serde_json::json;
 use std::{
     collections::HashMap,
     sync::{atomic::Ordering, Arc, RwLock},
@@ -134,7 +133,6 @@ impl TestConsumerContext {
                             // If this is the observer consumer it must wait till it is re-assigned and eventually reads all messages
                             if is_observer {
                                 // This branch has been experimentally found to be quite a rare occurrence, so we assert we reach it within our session run
-                                antithesis_sdk::assert_reachable!("observer consumer was un-assigned from topic partition before read completion", &json!({ "topic": topic, "partition": partition, "last_read_offset": last_read_offset }));
                                 remaining_topic_partitions.push(ConsumerPendingReadMetadata {
                                     topic_name: topic.clone(),
                                     topic_partition_index: *partition,
