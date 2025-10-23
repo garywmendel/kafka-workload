@@ -37,7 +37,6 @@ As of August 2025, there are five properties being asserted via the Antithesis S
 3. Previously-committed consumer offsets are never seen again. 
 4. The producer doesn't "double-write" messages. 
 5. Sequential messages are in sequential offsets.
-6. GARY'S NEW SDK ASSERTION - 
 
 ## How to Use (and Validate!)
 
